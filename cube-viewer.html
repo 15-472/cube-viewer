@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cube Viewer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Mooli&display=swap');
+
+body {
+	padding:0;
+	margin:0;
+	background:#444;
+	color:#bbb;
+	font-family: "Mooli", sans-serif;
+	font-weight: 400;
+	font-style: normal;
+}
+#instructions {
+	padding:4px;
+	margin:20px;
+	background:#000;
+	border-radius:8px;
+	text-align:center;
+}
+#drop-target {
+	display:none;
+	position:fixed;
+	left:0;
+	right:0;
+	top:0;
+	bottom:0;
+	background:#0008;
+	color:#ccc;
+}
+body.dragging #drop-target {
+	display:block;
+}
+#drop-target:before {
+	content:'';
+	display:block;
+	position:absolute;
+	top:20px;
+	left:20px;
+	bottom:20px;
+	right:20px;
+	border:5px dashed #aaa;
+	border-radius:20px;
+}
+#drop-target:after {
+	position:absolute;
+	content:'drop cube here';
+	color:#fff;
+	text-align:center;
+	font-size:3vw;
+	top:calc(50% - 0.5em);
+	left:0;
+	right:0;
+}
+#file {
+	display:none;
+}
+label {
+	text-decoration:underline;
+	cursor:pointer;
+}
+label:hover {
+	color:#fff;
+}
+
+.cube {
+	display:flex;
+	flex-flow:row wrap;
+	flex-gap:1px;
+}
+.face {
+	display:grid;
+	grid-template-rows: 20px min-content 20px min-content;
+	grid-template-columns: 20px min-content 20px;
+	align-items:center;
+	justify-items:center;
+	padding:2px;
+	margin:1px;
+	border:1px solid #000;
+	border-radius:16px;
+	min-width:35px;
+	min-height:35px;
+	background:#000;
+}
+.minS, .minT, .maxS, .maxT  {
+	font-size:14px;
+	line-height:16px;
+	height:16px;
+	white-space:nowrap;
+	border: 1px solid;
+	border-radius:4px;
+	padding:1px 4px;
+	color:#000;
+}
+.minS { grid-area: 2 / 1; transform:rotate(-90deg); }
+.maxS { grid-area: 2 / 3; transform:rotate(90deg); }
+.minT { grid-area: 1 / 2; }
+.maxT { grid-area: 3 / 2; }
+
+.posX { background:#f00; border-color:#f00; }
+.negX { background:#800; border-color:#f00; }
+.posY { background:#0f0; border-color:#0f0; }
+.negY { background:#080; border-color:#0f0; }
+.posZ { background:#77f; border-color:#77f; }
+.negZ { background:#44d; border-color:#77f; }
+
+figure > canvas {
+	grid-area: 2 / 2;
+	display:block;
+	padding:0;
+	margin:0;
+}
+figure > figcaption {
+	display:block;
+	grid-area: 4 / 1 / span 1 / span 3;
+	color:#fff;
+	text-align:center;
+}
+</style>
+</style>
+</head>
+<body>
+<p id="instructions">Drag a cube map in stacked-faces, "rgbe" format into this window or <label for="file">select a file<input id="file" type="file" multiple /></label>.</p>
+<div id="info"></div>
+<div id="drop-target">drop target</div>
+<script type="module">
+
+import {CubeViewer} from './cube-viewer.mjs';
+
+const FILE_INPUT = document.getElementById("file");
+
+FILE_INPUT.addEventListener('change', (evt) => {
+	load(FILE_INPUT.files);
+});
+
+const DROP_TARGET = document.getElementById("drop-target");
+
+window.addEventListener('dragenter', (evt) => {
+	if (evt.dataTransfer.types.indexOf("Files") === -1) return;
+	evt.dataTransfer.dragEffect = "copy";
+	evt.preventDefault();
+	document.body.classList.add('dragging');
+});
+
+DROP_TARGET.addEventListener('dragenter', (evt) => {
+	if (evt.dataTransfer.types.indexOf("Files") === -1) return;
+	evt.dataTransfer.dragEffect = "copy";
+	evt.preventDefault();
+});
+
+DROP_TARGET.addEventListener('dragover', (evt) => {
+	if (evt.dataTransfer.types.indexOf("Files") === -1) return;
+	evt.dataTransfer.dragEffect = "copy";
+	evt.preventDefault();
+});
+
+DROP_TARGET.addEventListener('dragleave', (evt) => {
+	console.log("Left.");
+	evt.preventDefault();
+	document.body.classList.remove('dragging');
+});
+
+DROP_TARGET.addEventListener('dragend', (evt) => {
+	console.log("Ended.");
+	evt.preventDefault();
+	document.body.classList.remove('dragging');
+});
+
+function handleDrop(evt) {
+	if (evt.dataTransfer.types.indexOf("Files") === -1) return;
+
+	console.log("Dropped.");
+	evt.preventDefault();
+}
+
+window.addEventListener('drop', (evt) => {
+	console.log("Dropped.");
+	document.body.classList.remove('dragging');
+
+	if (evt.dataTransfer.types.indexOf("Files") === -1) return;
+	evt.preventDefault();
+
+	load(evt.dataTransfer.files);
+});
+
+const INFO = document.getElementById("info");
+
+function load(files) {
+	console.log("Loading...");
+	INFO.innerHTML = ""; //remove any existing cubes
+	for (let file of files) {
+		const div = document.createElement('div');
+		CubeViewer.fromFile(div, file);
+		INFO.appendChild(div);
+	}
+}
+
+</script>
+</body>
+</html>
