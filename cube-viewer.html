@@ -22,6 +22,15 @@ body {
 	border-radius:8px;
 	text-align:center;
 }
+
+footer {
+	padding:4px;
+	margin:20px;
+	background:#222;
+	border-radius:8px;
+	text-align:center;
+}
+
 #drop-target {
 	display:none;
 	position:fixed;
@@ -59,12 +68,15 @@ body.dragging #drop-target {
 #file {
 	display:none;
 }
-label {
+label , a {
 	text-decoration:underline;
 	cursor:pointer;
 }
-label:hover {
+label:hover , a:hover {
 	color:#fff;
+}
+a {
+	color:#bbb;
 }
 
 .cube {
@@ -126,6 +138,9 @@ figure > figcaption {
 <body>
 <p id="instructions">Drag a cube map in stacked-faces, "rgbe" format into this window or <label for="file">select a file<input id="file" type="file" multiple /></label>.</p>
 <div id="info"></div>
+<footer>
+View the source code and report issues <a href="https://github.com/15-472/cube-viewer/">on github</a>.
+</footer>
 <div id="drop-target">drop target</div>
 <script type="module">
 
