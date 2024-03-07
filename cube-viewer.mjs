@@ -140,7 +140,6 @@ export class CubeViewer {
 				image.data[4*px+2] = 255*linear_to_srgb(tonemap(b));
 				image.data[4*px+3] = 0xff;
 			}
-			image.data[0] = 255; //DEBUG
 			ctx.putImageData(image, 0,0);
 		}
 	}
