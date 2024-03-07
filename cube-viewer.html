@@ -120,11 +120,30 @@ a {
 .posZ { background:#77f; border-color:#77f; }
 .negZ { background:#44d; border-color:#77f; }
 
-figure > canvas {
+.pixel-info {
+	position:absolute;
+	pointer-events:none;
+	z-index:10;
+	background:#000;
+	border-radius:5px;
+	padding:2px;
+	color:#fff;
+	display:none;
+}
+.pixel-info.active {
+	display:block;
+}
+
+.holder {
 	grid-area: 2 / 2;
+	position:relative;
+}
+
+.holder > canvas {
 	display:block;
 	padding:0;
 	margin:0;
+	cursor:crosshair;
 }
 figure > figcaption {
 	display:block;

@@ -96,9 +96,15 @@ export class CubeViewer {
 				figure.appendChild(d);
 			}
 
-
+			const holder = document.createElement('div');
+			holder.classList.add('holder');
 			const canvas = document.createElement('canvas');
-			figure.appendChild(canvas);
+			const info = document.createElement('div');
+			info.classList.add('pixel-info');
+			info.innerText = 'No info yet.';
+			holder.appendChild(canvas);
+			holder.appendChild(info);
+			figure.appendChild(holder);
 			figure.appendChild(caption);
 			this.div.appendChild(figure);
 
@@ -141,6 +147,23 @@ export class CubeViewer {
 				image.data[4*px+3] = 0xff;
 			}
 			ctx.putImageData(image, 0,0);
+
+			canvas.addEventListener('mouseout', (evt) => {
+				info.classList.remove('active');
+			});
+			canvas.addEventListener('mousemove', (evt) => {
+				let rect = canvas.getBoundingClientRect();
+				let x = Math.floor(evt.offsetX / rect.width * size);
+				let y = Math.floor(evt.offsetY / rect.height * size);
+				x = Math.max(0, Math.min(size, x));
+				y = Math.max(0, Math.min(size, y));
+				const px = y * size + x;
+				const rgbe = [face.rgbe[px*4+0], face.rgbe[px*4+1], face.rgbe[px*4+2], face.rgbe[px*4+3]];
+				info.innerHTML = `x:${x} y:${y}<br/>rgbe:${rgbe}<br/>rgb:${rgbe_to_rgb(...rgbe)}`;
+				info.style.left = `${evt.offsetX}px`;
+				info.style.top = `${evt.offsetY}px`;
+				info.classList.add('active');
+			});
 		}
 	}
 	static async fromFile(div, file) {
