@@ -65,7 +65,7 @@ body.dragging #drop-target {
 	left:0;
 	right:0;
 }
-#file {
+#file, #compare {
 	display:none;
 }
 label , a {
@@ -82,7 +82,13 @@ a {
 .cube {
 	display:flex;
 	flex-flow:row wrap;
-	flex-gap:1px;
+	justify-content:center;
+}
+.filename {
+	width:100%;
+	text-align:center;
+	border-top: 1px solid #0008;
+	color:#fff;
 }
 .face {
 	display:grid;
@@ -155,7 +161,8 @@ figure > figcaption {
 </style>
 </head>
 <body>
-<p id="instructions">Drag a cube map in stacked-faces, "rgbe" format into this window or <label for="file">select a file<input id="file" type="file" multiple /></label>.</p>
+<p id="instructions">Drag a cube map in stacked-faces, "rgbe" format into this window or <label for="file">select a file<input id="file" type="file" multiple /></label>.
+(Optionally, <label for="compare">select a file<input id="compare" type="file" /></label> to compare against.)</p>
 <div id="info"></div>
 <footer>
 View the source code and report issues <a href="https://github.com/15-472/cube-viewer/">on github</a>.
@@ -169,6 +176,16 @@ const FILE_INPUT = document.getElementById("file");
 
 FILE_INPUT.addEventListener('change', (evt) => {
 	load(FILE_INPUT.files);
+});
+
+const COMPARE_INPUT = document.getElementById("compare");
+
+COMPARE_INPUT.addEventListener('change', (evt) => {
+	if (COMPARE_INPUT.files.length) {
+		compare(COMPARE_INPUT.files[0]);
+	} else {
+		compare(null);
+	}
 });
 
 const DROP_TARGET = document.getElementById("drop-target");
@@ -232,6 +249,16 @@ function load(files) {
 		INFO.appendChild(div);
 	}
 }
+
+function compare(file) {
+	for (let div of INFO.children) {
+		if (div.CubeViewer) {
+			div.CubeViewer.compare(file);
+		}
+	}
+}
+
+window.compare = compare;
 
 </script>
 </body>

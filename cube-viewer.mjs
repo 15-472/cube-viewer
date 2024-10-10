@@ -1,7 +1,7 @@
 
 
 function rgbe_to_rgb(r,g,b,e) {
-	if (r === 0 && g === 0 && b === 0 && e=== 0) {
+	if (r === 0 && g === 0 && b === 0 && e === 0) {
 		return [0,0,0];
 	} else {
 		return [
@@ -28,9 +28,11 @@ function tonemap(x) {
 	return Math.max(0, Math.min(1, x));
 }
 
-
 export class CubeViewer {
-	constructor(div, width, height, rgbe) {
+	constructor(div, width, height, rgbe, filename) {
+		div.CubeViewer = this;
+		this.filename = filename;
+
 		//rgb is uint8 * 4 array
 		console.assert(width * 6 == height, "Expecting +x, -y, +y, -y, +z, -z faces stacked vertically.");
 		console.assert(width * height * 4 == rgbe.length, "rgbe data is width * height * 4.");
@@ -39,6 +41,14 @@ export class CubeViewer {
 
 		this.div = div;
 		this.div.innerHTML = "";
+
+		{
+			this.title = document.createElement("div");
+			this.title.classList.add("filename");
+			this.title.innerText = filename;
+			this.div.appendChild(this.title);
+		}
+
 		const faces = [
 			{name:"Positive X", s:"-z", t:"-y", rgbe:rgbe.subarray(0*size*size*4, 1*size*size*4)},
 			{name:"Negative X", s:"+z", t:"-y", rgbe:rgbe.subarray(1*size*size*4, 2*size*size*4)},
@@ -47,6 +57,7 @@ export class CubeViewer {
 			{name:"Positive Z", s:"+x", t:"-y", rgbe:rgbe.subarray(4*size*size*4, 5*size*size*4)},
 			{name:"Negative Z", s:"-x", t:"-y", rgbe:rgbe.subarray(5*size*size*4, 6*size*size*4)},
 		];
+		this.faces = faces;
 
 		function axisClass(label) {
 			let ret = "";
@@ -159,31 +170,113 @@ export class CubeViewer {
 				y = Math.max(0, Math.min(size, y));
 				const px = y * size + x;
 				const rgbe = [face.rgbe[px*4+0], face.rgbe[px*4+1], face.rgbe[px*4+2], face.rgbe[px*4+3]];
-				info.innerHTML = `x:${x} y:${y}<br/>rgbe:${rgbe}<br/>rgb:${rgbe_to_rgb(...rgbe)}`;
+				const rgb = rgbe_to_rgb(...rgbe);
+				info.innerHTML = `x:${x} y:${y}<br>rgbe:${rgbe}<br>rgb:${rgb}`;
+				if (face.compare) {
+					const cRgbe = [face.compare.rgbe[px*4+0], face.compare.rgbe[px*4+1], face.compare.rgbe[px*4+2], face.compare.rgbe[px*4+3]];
+					const cRgb = rgbe_to_rgb(...cRgbe);
+					info.innerHTML += `<br>vs:${cRgb}`;
+					const delta = [
+						cRgb[0]-rgb[0],
+						cRgb[1]-rgb[1],
+						cRgb[2]-rgb[2],
+					]
+					info.innerHTML += `<br>delta:${delta}`;
+				}
 				info.style.left = `${evt.offsetX}px`;
 				info.style.top = `${evt.offsetY}px`;
 				info.classList.add('active');
 			});
+
+			face.canvas = canvas;
+			face.ctx = ctx;
+
+			face.setCompare = (cSize, cRgbe) => {
+				if (cSize !== size) {
+					face.compare = null;
+					return;
+				}
+
+				face.compare = {size:cSize, rgbe:cRgbe};
+
+				for (let px = 0; px < size*size; ++px) {
+					const [r,g,b] = rgbe_to_rgb( face.rgbe[px*4+0], face.rgbe[px*4+1], face.rgbe[px*4+2], face.rgbe[px*4+3] );
+					const [cr,cg,cb] = rgbe_to_rgb( cRgbe[px*4+0], cRgbe[px*4+1], cRgbe[px*4+2], cRgbe[px*4+3] );
+
+					function f(a,b) {
+						return (b-a) / Math.max(Math.abs(a), Math.abs(b)) + 0.5;
+					}
+
+					image.data[4*px+0] = 255*linear_to_srgb(f(r,cr));
+					image.data[4*px+1] = 255*linear_to_srgb(f(g,cg));
+					image.data[4*px+2] = 255*linear_to_srgb(f(b,cb));
+					image.data[4*px+3] = 0xff;
+				}
+				ctx.putImageData(image, 0,0);
+			};
 		}
+	}
+
+
+	async compare(file) {
+
+		if (file === null) {
+			for (let i = 0; i < this.faces.length; ++i) {
+				this.faces[i].setCompare();
+			}
+			this.compareFilename = null;
+			this.title.innerText = `${this.filename}`;
+			return;
+		}
+
+		const {filename, width, height, rgbe} = await loadImage(file, (p) => {
+			console.log(p);
+		});
+
+		const size = width;
+
+		const faces = [
+			{name:"Positive X", s:"-z", t:"-y", rgbe:rgbe.subarray(0*size*size*4, 1*size*size*4)},
+			{name:"Negative X", s:"+z", t:"-y", rgbe:rgbe.subarray(1*size*size*4, 2*size*size*4)},
+			{name:"Positive Y", s:"+x", t:"+z", rgbe:rgbe.subarray(2*size*size*4, 3*size*size*4)},
+			{name:"Negative Y", s:"+x", t:"-z", rgbe:rgbe.subarray(3*size*size*4, 4*size*size*4)},
+			{name:"Positive Z", s:"+x", t:"-y", rgbe:rgbe.subarray(4*size*size*4, 5*size*size*4)},
+			{name:"Negative Z", s:"-x", t:"-y", rgbe:rgbe.subarray(5*size*size*4, 6*size*size*4)},
+		];
+
+		for (let i = 0; i < this.faces.length; ++i) {
+			this.faces[i].setCompare(size, faces[i].rgbe);
+		}
+
+		this.compareFilename = file.name;
+		this.title.innerText = `${this.filename} vs ${this.compareFilename} (relative difference)`;
 	}
 	static async fromFile(div, file) {
 		div.classList.add('cube');
-		div.innerHTML = "Loading...";
-		const bitmap = await createImageBitmap(file, {colorSpaceConversion:"none"});
-		div.innerHTML = "Loading... (have image)";
-		const width = bitmap.width;
-		const height = bitmap.height;
-		//get image contents by drawing to offscreen canvas and reading back uint8array:
-		//  (seems cumbersome!)
-		const canvas = new OffscreenCanvas(width, height);
-		const ctx = canvas.getContext('2d');
-		ctx.drawImage(bitmap, 0,0);
-		const rgbe = ctx.getImageData(0,0, width, height).data;
+		const {filename, width, height, rgbe} = await loadImage(file, (message) => {
+			div.innerText = message;
+		});
 
 		//actually make the viewer control thing:
-		return new CubeViewer(div, width, height, rgbe);
+		return new CubeViewer(div, width, height, rgbe, file.name);
 	}
 
+}
+
+async function loadImage(file, progress) {
+	const filename = file.name;
+	progress("Loading...");
+	const bitmap = await createImageBitmap(file, {colorSpaceConversion:"none"});
+	progress("Loading... (have image)");
+	const width = bitmap.width;
+	const height = bitmap.height;
+	//get image contents by drawing to offscreen canvas and reading back uint8array:
+	//  (seems cumbersome!)
+	const canvas = new OffscreenCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(bitmap, 0,0);
+	const rgbe = ctx.getImageData(0,0, width, height).data;
+	return {filename, width, height, rgbe};
 }
 
 export default { CubeViewer };
