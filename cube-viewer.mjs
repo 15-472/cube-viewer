@@ -72,6 +72,10 @@ export class CubeViewer {
 		}
 
 		window.FACES = faces; //DEBUG
+
+		let energyAcc = 0.0;
+		let areaAcc = 0.0;
+
 		for (const face of faces) {
 			const figure = document.createElement('figure');
 			figure.classList.add("face");
@@ -149,14 +153,53 @@ export class CubeViewer {
 				}
 			}*/
 
-			for (let px = 0; px < size*size; ++px) {
-				const [r,g,b] = rgbe_to_rgb( face.rgbe[px*4+0], face.rgbe[px*4+1], face.rgbe[px*4+2], face.rgbe[px*4+3] );
+			for (let y = 0; y < size; ++y) {
+				for (let x = 0; x < size; ++x) {
+					const px = y*size+x;
+					const [r,g,b] = rgbe_to_rgb( face.rgbe[px*4+0], face.rgbe[px*4+1], face.rgbe[px*4+2], face.rgbe[px*4+3] );
 
-				image.data[4*px+0] = 255*linear_to_srgb(tonemap(r));
-				image.data[4*px+1] = 255*linear_to_srgb(tonemap(g));
-				image.data[4*px+2] = 255*linear_to_srgb(tonemap(b));
-				image.data[4*px+3] = 0xff;
+					image.data[4*px+0] = 255*linear_to_srgb(tonemap(r));
+					image.data[4*px+1] = 255*linear_to_srgb(tonemap(g));
+					image.data[4*px+2] = 255*linear_to_srgb(tonemap(b));
+					image.data[4*px+3] = 0xff;
+
+					//normalized, [-1,1]^3 coords:
+
+					const at = {
+						x:(x + 0.5) / size * 2 - 1,
+						y:(y + 0.5) / size * 2 - 1,
+						z:1
+					};
+
+					/*
+
+					//approximate sphere area surface:
+					const approxArea =
+						4.0 / (size*size) //one pixel of area on the cube surface
+						* ((at.x ** 2 + at.y ** 2 + at.z ** 2) ** -1.5) //jacobian of cube->sphere projection
+					;
+					approxAreaAcc += approxArea;
+
+					*/
+
+					//area element as per AMD CubeMapGen source:
+					// via https://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
+					//(I think this summing up areas of spherical triangles, sorta, maybe?)
+					function areaElement(x,y) {
+						return Math.atan2(x*y, Math.sqrt(x*x + y*y + 1));
+					}
+					const amdArea =
+						  areaElement(at.x - 1.0 / size, at.y - 1.0 / size)
+						- areaElement(at.x - 1.0 / size, at.y + 1.0 / size)
+						- areaElement(at.x + 1.0 / size, at.y - 1.0 / size)
+						+ areaElement(at.x + 1.0 / size, at.y + 1.0 / size)
+					;
+					areaAcc += amdArea;
+
+					energyAcc += amdArea * (r + g + b);
+				}
 			}
+
 			ctx.putImageData(image, 0,0);
 
 			canvas.addEventListener('mouseout', (evt) => {
@@ -214,6 +257,16 @@ export class CubeViewer {
 				}
 				ctx.putImageData(image, 0,0);
 			};
+		}
+
+		console.log(`Summed area is ${(100 * areaAcc / (4 * Math.PI)).toFixed(2)}% of exact sphere area (should be very close!).`);
+
+		{
+			const span = document.createElement("span");
+			span.classList.add("energy");
+			span.innerText = `area-weighted energy: ${energyAcc.toPrecision(6)}`;
+			this.title.innerText += " ";
+			this.title.appendChild(span);
 		}
 	}
 
